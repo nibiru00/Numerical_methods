@@ -1,176 +1,123 @@
-import numpy as np
-import prettytable
+import math
 
-def max_row_norms (matrix):
-    return np.max(np.sum(np.abs(matrix), axis=1))
-print("Введите размерность квадратной матрицы:")
-n = int(input())
-delta = 10**(-8)
-rtol = 10**(-6)
-proper_number_list = list(np.random.randn(1, n) * 100)[0]
-proper_number_list = sorted(proper_number_list, key=abs, reverse=True)
-matrix_Proper = np.diag(proper_number_list) ## создание диагональной матрицы
-while True:
-    random_matrix = np.random.randn(n, n) * 100
-    if np.linalg.det(random_matrix) != 0:
-        break
-A = np.linalg.inv(random_matrix) @ matrix_Proper @ random_matrix ## создание рабочей матрицы A
-##A = [[ 75.3291527, -5.82315345,  -9.31919342], [  1.78970067,  35.9243854,  -37.51167932], [  6.26172701, -11.16629923,  95.59824119]]
+# Определить массив значений шага от 0,5 до 0,6 с шагом 0,01
+arr_step = [i*0.01 for i in range(int(0.5/0.01), int(0.6/0.01))]
 
-def Power_law_method(A, rtol, delta):
-    n = A.shape[0]
-    y_0 = [1] * n  ## задаём начальный вектор
-    z_0 = [y_0[i] / max(y_0) for i in range(n)]  ## нормировка (хотя для выбранного вектора это ненужно)
-    z_old = np.array(z_0)
-    q_old = np.array([y_0[i] / z_old[i] for i in range(n) if abs(z_old[i]) > delta])
-    k = 0
-    ## Быть внимательным с оператором @.
-    # Я проверил, он очень умный
-    # (умеет сам транспонировать матрицы (как минимум одномерные вектора),
-    # поэтому надо быть аккуратным)
-    while True:
-        k += 1
-        y = A @ z_old  ## Шаг 2
-        z_k = np.array([y[i] / max(y) for i in range(n)])
-        q_k = []
-        # q_k = np.array([y[i]/z_old[i] for i in range(n) if abs(z_old[i]) > delta])      # Шаг 3
-        for i in range(n):
-            if abs(z_old[i]) > delta:
-                q_k.append(y[i] / z_old[i])
-            else:
-                q_k.append(0)
-        q_k = np.array(q_k)
-        if max(abs(q_k - q_old)) <= rtol * max(max(abs(q_k)), max(abs(q_old))):  # Проверка на сходимость
-            break
-        z_old = z_k
-        q_old = q_k
+# Инициализировать пустой список для хранения результатов вычислений функции
+arr_result_Built_in_functions = []
 
-    prop_num = sum(q_k) / (np.count_nonzero(q_k))
-    return [prop_num, z_k]
+# Выполнить итерацию по каждому значению шага в массиве
+for x in arr_step:
+    # Вычислить значение функции с использованием встроенных математических функций
+    # Функция: sqrt((1+x)*exp(2x+1))*sin(0.3x + 0.7)
+    arr_result_Built_in_functions.append(math.sqrt((1+x)*math.exp(2*x+1))*math.sin(0.3*x + 0.7))
+    ## Вычислите значения функции с помощью встроенных функций
 
-def pribl_of_prop_number(A, proper_number_list, k = 20):
-    n = A.shape[0]
-    step_aprox_pr = np.linspace(-max_row_norms(A), max_row_norms(A), k)
 
-    list_of_approx_prop_numb = [[] for i in range(n)]
-    temp_list = [[] for i in range(n)]
-    proper_number_list = np.array(proper_number_list)
 
-    temp_matrix = [abs(proper_number_list - step_aprox_pr[i]) for i in range(len(step_aprox_pr))]
-    min_index_ap = np.argmin(temp_matrix, axis=1)
-    temp_matrix = np.sort(temp_matrix, axis=1)
-    for i in range(len(step_aprox_pr)):
-        if temp_matrix[i][0] != temp_matrix[i][1]:
-            list_of_approx_prop_numb[min_index_ap[i]].append(step_aprox_pr[i])
-            temp_list[min_index_ap[i]].append(abs(proper_number_list[min_index_ap[i]] - step_aprox_pr[i]) /
-                                              max(abs(proper_number_list - step_aprox_pr[i])))
-    best_approx = [list_of_approx_prop_numb[i][np.argmin(temp_list[i])] for i in range(n)]
-    if len(set(min_index_ap)) < 3:
-        return pribl_of_prop_number(A, proper_number_list, k + 100)
+
+def my_heron(x: float, k: int) -> float:
+    """
+    Эта функция аппроксимирует значение квадратного корня из x с помощью
+    алгоритма Герона.
+
+    :param x: значение, из которого ищется квадратный корень
+    :param k: количество шагов алгоритма (количество итераций)
+    :return: значение квадратного корня из x
+    """
+    if k != 0:
+        w = my_heron(x, k - 1)
+        return (1 / 2) * (w + x / w)
     else:
-        return best_approx
-
-
-def Inverse_power_method(A, rtol, delta):
-    n = A.shape[0]
-    k = 200
-    initial_shift = pribl_of_prop_number(A, proper_number_list, k)
-    print(f"\nсобственные числа:{proper_number_list}")
-    print(f"приближения:{initial_shift}")
-    answer = []
-    ## Это обратный степенной метод
-    for i in range(n):
-        z_old = [1] * n
-        sig_old = initial_shift[i]
-        w = 0
-        while w != 10000:
-            w += 1
-            if np.linalg.det(A - sig_old * np.eye(n)) == 0:
-                    sig_old += 1e-10
-            y_k = np.linalg.solve(A - sig_old * np.eye(n), z_old)
-            z_k = y_k/max(abs(y_k))
-            mu_k = []
-            for i in range(n):
-                if abs(y_k[i]) > delta:
-                    mu_k.append(z_old[i]/y_k[i])
-                else:
-                    mu_k.append(0)
-            mu_k = np.array(mu_k)
-            sig_k = sig_old + sum(mu_k)/np.count_nonzero(mu_k)
-            if abs(sig_k - sig_old) < rtol and max(abs(z_k-z_old)) < rtol:
-                break
-            z_old = z_k
-            sig_old = sig_k
-
-        answer.append([sig_k, z_k])
-    ##
-
-    return answer
-
-def Hess(A):
-    n = A.shape[0]
-    for i in range(n-2):
-        s = np.sign(A[i + 1, i]) * np.sqrt(np.sum(A[i + 1:, i] ** 2))
-        mu = 1 / np.sqrt(2 * s * (s - A[i + 1, i]))
-        ## Процесс построения вектора v
-        v = np.zeros((1, n))
-        v[0, i+1] = A[i + 1, i] - s
-        v[0, i+2:] = A[i + 2:, i]
-        v = mu * np.transpose(v)
-        H = np.eye(n) - (2*v) @ np.transpose(v)
-        A = H @ A @ H
-    return A
-
-def QR_decomposition(B, delta):
-    C = B
-    answer = []
-    n = B.shape[0]
-    n_ch = n
-    while n_ch != 0:
-        B = B[:n_ch, :n_ch]
-        w = 0
-        while w != 10000:
-            w += 1
-            b_old = B[n_ch - 1, n_ch - 1]
-            Q, R = np.linalg.qr(B - B[n_ch - 1, n_ch - 1] * np.eye(n_ch))
-            B = R @ Q + B[n_ch - 1, n_ch - 1] * np.eye(n_ch)
-            b_new = B[n_ch - 1, n_ch - 1]
-            if abs(b_new - b_old) < 1/3*abs(b_old):
-                if n_ch == 1:
-                    break
-                elif abs(B[n_ch - 1, n_ch-2]) < delta:
-                    break
-        answer.append(b_new)
-        # if n_ch != n:
-        #     C[n_ch-1, :] = np.array(list(B[n_ch-1, :]) + list(np.zeros((1, n-n_ch))))
-        #         #np.concatenate((B[n_ch-1, :], np.zeros((1, n-n_ch))), axis=1)
-        #     C[:, n_ch-1] = np.array(list(B[:, n_ch-1]) + list(np.zeros((1, n-n_ch))))
-        #         # np.concatenate((B[:, n_ch-1], np.zeros((n-n_ch, 1))), axis=0)
-        # else:
-        #     C[n_ch - 1, :] = B[n_ch - 1, :]
-        #     C[:, n_ch - 1] = B[:, n_ch-1]
-        n_ch -= 1
-    return C, answer
+        return math.ceil(math.sqrt(x))
 
 
 
-result_power_law_method = Power_law_method(A, rtol, delta)
-result_inv_pow = Inverse_power_method(A, rtol, delta)
-print("Результат степенного метода:")
-print(f"Наибольшое собственное число: {result_power_law_method[0]}")
-print(f"Собственный вектор: {result_power_law_method[1]}")
-print(f"Проверка A * x == lam * x: {A @ result_power_law_method[1]} == {result_power_law_method[0] * result_power_law_method[1]}")
 
-print("\nРезультат обратно степенного метода:")
-for i in range(n):
-    print(f"Собственное число_{i+1}: {result_inv_pow[i][0]}")
-    print(f"Собственный вектор_{i+1}: {result_inv_pow[i][1]}")
-    print(f"Проверка A * x == lam * x:{A @ result_inv_pow[i][1]} == {result_inv_pow[i][0] * result_inv_pow[i][1]}")
+def my_exp(x: float, e: float) -> float:
+    """
+    Эта функция аппроксимирует значение e^(2x+1) с использованием ряда Тейлора.
+    Точность аппроксимации определяется параметром e.
+    """
+    n = 0
+    f = 0
+    t = 2 * x + 1
+    # Вычислите количество членов в ряду Тейлора
+    while (1 + x) * (math.pow(t, n)) / math.factorial(n) > (e / 0.15):
+        n += 1
+    # Вычислите значение e ^(2x+1), используя ряд Тейлора
+    for i in range(n, -1, -1):
+        f += math.pow(t, i) / math.factorial(i)
+    return f
 
-#np.set_printoptions(precision=2, suppress=True)
-print(Hess(A))
-B = Hess(A)
-U, result_QR = QR_decomposition(B, delta)
-# print(f"\n Матрица, которая получилась после применений QR:\n{U}")
-print(f"\n Собственные числа, полученные QR: {sorted(result_QR, key=abs, reverse=True)}")
-print(f"\n Изначальные собственные числа: {proper_number_list}")
+
+
+def my_cos(x: float, e: float) -> float:
+    """
+    Эта функция аппроксимирует значение cos(0,3*x + 0,7) с использованием ряда Тейлора.
+    Точность аппроксимации определяется параметром e.
+    """
+    # Вычислите количество членов в ряду Тейлора
+    p = 0
+    f = 0
+    y = math.pi/2-(0.3*x+0.7)
+    while (abs(math.pow(y, 2 * p) / math.factorial(2 * p))) > (e / 31.2):
+        p += 1
+    # Вычислите значение cos(0,3*x + 0,7), используя ряд Тейлора
+    for i in range(p, -1, -1):
+        f += math.pow(-1, i) * math.pow(y, 2 * i) / math.factorial(2 * i)
+    return f
+
+
+
+
+def my_sqrt(x: float, e: float) -> float:
+    """
+    Аппроксимирует квадратный корень из x, используя модифицированный метод Херона.
+    Точность аппроксимации определяется параметром e.
+
+    :param x: Число, из которого нужно извлечь квадратный корень.
+    :param e: Желаемая точность аппроксимации.
+    :return: приблизительный квадратный корень из x.
+    """
+    k = 1
+    # Вычислите значение косинуса с заданной точностью
+    c = my_cos(x, e)
+    # Повторяйте до тех пор, пока изменение аппроксимации не достигнет желаемой точности
+    while abs(c) * abs(my_heron(x, k) - my_heron(x, k-1)) > (e/3):
+        k += 1
+    # Окончательное приближение с использованием метода Герона
+    f = my_heron(x, k)
+    return f
+
+
+# Запросить у пользователя уровень точности
+print("Write degree of exp (The level of accuracy):  ")
+# Получить ввод пользователя и преобразовать его в целое число
+n = int(input())
+
+# Вычислить значение экспоненты на основе ввода пользователя
+e = pow(10, n)
+
+# Использовать выражение-генератор для вычисления результата пользовательской функции
+# для каждого значения в arr_step, используя вычисленное значение экспоненты
+my_func_result = [
+    # Вычислить квадратный корень из ((1+x) * exp(x, e)) с точностью e,
+    # затем умножить на косинус (x, e)
+    my_sqrt((1+x)*my_exp(x, e), e)*my_cos(x, e)
+    for x in arr_step
+]
+
+# Перебрать результаты и вывести их вместе с результатами встроенной функции
+for i in range(len(arr_step)):
+    # Вывести результат встроенной функции и пользовательской функции
+    print(f"{arr_result_Built_in_functions[i]}  {my_func_result[i]}")
+
+## 17
+
+
+
+
+
+
+
